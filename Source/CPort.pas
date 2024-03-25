@@ -398,6 +398,7 @@ type
     procedure ApplyTimeouts; dynamic;
     procedure ApplyBuffer; dynamic;
     procedure SetupComPort; virtual;
+    function CheckPortDisconnected: Boolean; inline;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -1536,7 +1537,7 @@ begin
   // if already closed, do nothing
   if FConnected and not (csDesigning in ComponentState) then
   begin
-    if GetLastError <> ERROR_ACCESS_DENIED then
+    if not CheckPortDisconnected then
     begin
       CallBeforeClose;
 
@@ -1901,7 +1902,7 @@ begin
 
 
   if not Success then
-    if GetLastError = ERROR_ACCESS_DENIED then
+    if CheckPortDisconnected then
     begin
       // USB cable disconnected
       Close;
@@ -2039,7 +2040,7 @@ begin
     or (GetLastError = ERROR_IO_PENDING);
 
   if not Success then
-    if GetLastError = ERROR_ACCESS_DENIED then
+    if CheckPortDisconnected then
     begin
       // USB cable disconnected
       Close;
@@ -2171,7 +2172,7 @@ end;
 procedure TCustomComPort.AbortAllAsync;
 begin
   if not PurgeComm(FHandle, PURGE_TXABORT or PURGE_RXABORT) then
-    if GetLastError <> ERROR_ACCESS_DENIED then
+    if not CheckPortDisconnected then
       //raise EComPort.Create
       CallException(CError_PurgeFailed, GetLastError);
 end;
@@ -2803,6 +2804,14 @@ procedure TCustomComPort.DoRx80Full;
 begin
   if Assigned(FOnRx80Full) then
     FOnRx80Full(Self);
+end;
+
+function TCustomComPort.CheckPortDisconnected: Boolean;
+ var
+  error: DWORD;
+begin
+  error := GetLastError;
+  Result := (error = ERROR_ACCESS_DENIED) or (error = ERROR_BAD_COMMAND);
 end;
 
 // set signals to false on close, and to proper value on open,
